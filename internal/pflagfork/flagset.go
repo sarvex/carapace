@@ -46,16 +46,38 @@ func (f *FlagSet) VisitAll(fn func(*Flag)) {
 
 }
 
-func (fs FlagSet) LookupArg(arg string) (result *Flag) {
-	isPosix := fs.IsPosix()
-	fs.VisitAll(func(f *Flag) {
-		if result != nil {
+func (fs FlagSet) shorthandLookupArg(arg string) (result *Flag) {
+	for i := 1; i < len(arg); i++ {
+		f := fs.ShorthandLookup(string(arg[i]))
+		if f == nil {
 			return
 		}
-
-		if f.Matches(arg, isPosix) {
-			result = f
+		result = &Flag{f}
+		switch {
+		case result.IsOptarg() && i < len(arg)-1 && arg[i] == byte(result.OptargDelimiter()):
+			return
+		case result.TakesValue():
+			return
 		}
-	})
+	}
+	return
+}
+
+func (fs FlagSet) LookupArg(arg string) (result *Flag) {
+	switch {
+	case fs.IsShorthandSeries(arg):
+		return fs.shorthandLookupArg(arg)
+
+	default:
+		fs.VisitAll(func(f *Flag) {
+			if result != nil {
+				return
+			}
+
+			if f.NameMatches(arg) {
+				result = f
+			}
+		})
+	}
 	return
 }
