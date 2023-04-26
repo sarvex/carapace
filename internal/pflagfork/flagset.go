@@ -11,8 +11,8 @@ type FlagSet struct {
 	*pflag.FlagSet
 }
 
-func (f FlagSet) IsPosix() bool {
-	if method := reflect.ValueOf(f.FlagSet).MethodByName("IsPosix"); method.IsValid() {
+func (fs FlagSet) IsPosix() bool {
+	if method := reflect.ValueOf(fs.FlagSet).MethodByName("IsPosix"); method.IsValid() {
 		if values := method.Call([]reflect.Value{}); len(values) == 1 && values[0].Kind() == reflect.Bool {
 			return values[0].Bool()
 		}
@@ -20,21 +20,22 @@ func (f FlagSet) IsPosix() bool {
 	return true
 }
 
-func (f FlagSet) IsShorthandSeries(arg string) bool {
-	if len(arg) < 2 || !strings.HasPrefix(arg, "-") || strings.HasPrefix(arg, "--") || !f.IsPosix() {
+func (fs FlagSet) IsShorthandSeries(arg string) bool {
+	if len(arg) < 2 || !strings.HasPrefix(arg, "-") || strings.HasPrefix(arg, "--") || !fs.IsPosix() {
 		return false
 	}
 
-	flag := f.ShorthandLookup(string(arg[1]))
+	flag := fs.ShorthandLookup(string(arg[1]))
 	if flag == nil {
 		return false
 	}
 
+	f := Flag{flag}
 	switch {
-	case (Flag{flag}).IsOptarg():
-		return len(arg) < 3 || arg[2] != byte((Flag{flag}).OptargDelimiter())
+	case f.IsOptarg():
+		return len(arg) < 3 || arg[2] != byte(f.OptargDelimiter())
 
-	case (Flag{flag}).TakesValue():
+	case f.TakesValue():
 		return false
 
 	default:
@@ -72,11 +73,11 @@ func (f FlagSet) IsShorthandSeries(arg string) bool {
 // 	return true
 // }
 
-func (f FlagSet) IsMutuallyExclusive(flag *pflag.Flag) bool {
+func (fs FlagSet) IsMutuallyExclusive(flag *pflag.Flag) bool {
 	if groups, ok := flag.Annotations["cobra_annotation_mutually_exclusive"]; ok {
 		for _, group := range groups {
 			for _, name := range strings.Split(group, " ") {
-				if other := f.Lookup(name); other != nil && other.Changed {
+				if other := fs.Lookup(name); other != nil && other.Changed {
 					return true
 				}
 			}
@@ -85,8 +86,8 @@ func (f FlagSet) IsMutuallyExclusive(flag *pflag.Flag) bool {
 	return false
 }
 
-func (f *FlagSet) VisitAll(fn func(*Flag)) {
-	f.FlagSet.VisitAll(func(flag *pflag.Flag) {
+func (fs *FlagSet) VisitAll(fn func(*Flag)) {
+	fs.FlagSet.VisitAll(func(flag *pflag.Flag) {
 		fn(&Flag{flag})
 	})
 
