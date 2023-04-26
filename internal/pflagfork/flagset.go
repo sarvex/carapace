@@ -22,8 +22,25 @@ func (f FlagSet) IsPosix() bool {
 }
 
 func (f FlagSet) IsShorthandSeries(arg string) bool {
-	re := regexp.MustCompile("^-(?P<shorthand>[^-=]+)")
-	return re.MatchString(arg) && f.IsPosix()
+	if len(arg) < 3 || !strings.HasPrefix(arg, "-") || strings.HasPrefix(arg, "--") || !f.IsPosix() {
+		return false
+	}
+
+	flag := f.ShorthandLookup(string(arg[1]))
+	if flag == nil {
+		return false
+	}
+
+	switch {
+	case (Flag{flag}).IsOptarg() && arg[2] == byte(flag.OptargDelimiter):
+		return false
+
+	case (Flag{flag}).TakesValue():
+		return false
+
+	default:
+		return true
+	}
 }
 
 func (f FlagSet) IsMutuallyExclusive(flag *pflag.Flag) bool {
