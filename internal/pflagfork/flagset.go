@@ -2,7 +2,6 @@ package pflagfork
 
 import (
 	"reflect"
-	"regexp"
 	"strings"
 
 	"github.com/spf13/pflag"
@@ -22,7 +21,7 @@ func (f FlagSet) IsPosix() bool {
 }
 
 func (f FlagSet) IsShorthandSeries(arg string) bool {
-	if len(arg) < 3 || !strings.HasPrefix(arg, "-") || strings.HasPrefix(arg, "--") || !f.IsPosix() {
+	if len(arg) < 2 || !strings.HasPrefix(arg, "-") || strings.HasPrefix(arg, "--") || !f.IsPosix() {
 		return false
 	}
 
@@ -32,8 +31,8 @@ func (f FlagSet) IsShorthandSeries(arg string) bool {
 	}
 
 	switch {
-	case (Flag{flag}).IsOptarg() && arg[2] == byte(flag.OptargDelimiter):
-		return false
+	case (Flag{flag}).IsOptarg():
+		return len(arg) < 3 || arg[2] != byte((Flag{flag}).OptargDelimiter())
 
 	case (Flag{flag}).TakesValue():
 		return false
@@ -42,6 +41,36 @@ func (f FlagSet) IsShorthandSeries(arg string) bool {
 		return true
 	}
 }
+
+// func (f FlagSet) IsShorthandSeries(arg string) bool {
+// 	if len(arg) < 2 || !strings.HasPrefix(arg, "-") || strings.HasPrefix(arg, "--") || !f.IsPosix() {
+// 		return false
+// 	}
+
+// 	var previous *Flag
+// 	for index, shorthand := range arg[1:] {
+// 		flag := f.ShorthandLookup(string(arg[1]))
+// 		if flag == nil {
+// 			return false
+// 		}
+
+// 		switch {
+// 		case previous != nil && previous.IsOptarg() && previous.OptargDelimiter == shorthand:
+// 			return false
+
+// 		case (Flag{flag}).IsOptarg():
+// 			return true
+
+// 		case (Flag{flag}).TakesValue():
+// 			return false
+
+// 		default:
+// 			return true
+// 		}
+
+// 	}
+// 	return true
+// }
 
 func (f FlagSet) IsMutuallyExclusive(flag *pflag.Flag) bool {
 	if groups, ok := flag.Annotations["cobra_annotation_mutually_exclusive"]; ok {
